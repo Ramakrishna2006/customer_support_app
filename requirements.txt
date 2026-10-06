@@ -1,0 +1,18 @@
+# ---- LangChain (v1) ----
+langchain>=1.0,<2
+langchain-core>=1.0,<2
+langchain-community>=0.3
+langchain-ollama>=0.3        # local models via Ollama (default)
+langchain-openai>=0.3        # OpenAI models (optional)
+
+# ---- Speech-to-text ----
+openai-whisper               # local Whisper (needs FFmpeg installed on your system)
+openai>=1.40                 # OpenAI transcription API (optional)
+
+# ---- Web UI ----
+gradio>=5
+
+# ---- Utilities ----
+python-dotenv
+pydantic>=2
+pandas

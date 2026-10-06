@@ -1,0 +1,30 @@
+# Secrets: never commit your API keys
+.env
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Demo data the app writes (recreated automatically from data/orders_seed.csv)
+data/orders.csv
+data/tickets.csv
+
+# Gradio / audio files
+.gradio/
+flagged/
+*.wav
+*.mp3
+*.m4a
+*.webm
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

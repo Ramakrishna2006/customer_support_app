@@ -1,0 +1,8 @@
+# Lightweight set for running the tests (no Whisper/PyTorch/Gradio needed)
+langchain>=1.0,<2
+langchain-core>=1.0,<2
+langchain-ollama>=0.3
+python-dotenv
+pydantic>=2
+pandas
+pytest

@@ -1,0 +1,9 @@
+order_id,customer_name,email,product,amount_inr,status,order_date,expected_delivery,tracking_number,shipping_address
+ORD1001,Ravi Kumar,ravi@example.com,Wireless Earbuds,2499,Delivered,2026-09-12,2026-09-16,TRK88213,"12 MG Road, Vijayawada"
+ORD1002,Priya Sharma,priya@example.com,Smart Watch,5999,Shipped,2026-09-28,2026-10-06,TRK88457,"45 Banjara Hills, Hyderabad"
+ORD1003,Anil Reddy,anil@example.com,Laptop Backpack,1499,Processing,2026-10-02,2026-10-09,,"8 Beach Road, Visakhapatnam"
+ORD1004,Sneha Iyer,sneha@example.com,Bluetooth Speaker,3299,Delayed,2026-09-20,2026-09-27,TRK88102,"22 Anna Nagar, Chennai"
+ORD1005,Rahul Verma,rahul@example.com,Mechanical Keyboard,4599,Cancelled,2026-09-25,,,"10 Indiranagar, Bengaluru"
+ORD1006,Kavya Nair,kavya@example.com,Phone Case,499,Out for Delivery,2026-09-30,2026-10-04,TRK88590,"3 MG Road, Kochi"
+ORD1007,Arjun Patel,arjun@example.com,USB-C Charger,999,Returned,2026-09-05,2026-09-09,TRK87995,"77 CG Road, Ahmedabad"
+ORD1008,Meera Joshi,meera@example.com,Fitness Band,2199,Processing,2026-10-03,2026-10-10,,"15 FC Road, Pune"
