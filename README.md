@@ -1,3 +1,4 @@
+<p align="center"><img src="docs/images/logo.svg" width="120" alt="ShopEasy logo"></p>
 # 🛍️ AI Customer Support Assistant (LangChain + Python)
 
 An AI support agent for a fictional online shop, **ShopEasy**. Customers can type or **speak** a question.

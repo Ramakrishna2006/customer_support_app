@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Shopping bag assistant logo">
+  <defs>
+    <linearGradient id="bbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1F2937"/><stop offset="1" stop-color="#0B0B0F"/></linearGradient>
+    <linearGradient id="bgold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E9CFA0"/><stop offset="1" stop-color="#B8925E"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bbg)"/>
+  <!-- bag handle -->
+  <path d="M196 196 V166 A60 60 0 0 1 316 166 V196" fill="none" stroke="url(#bgold)" stroke-width="22" stroke-linecap="round"/>
+  <!-- bag body with a speech-bubble tail -->
+  <path d="M150 180 H362 A22 22 0 0 1 384 202 L396 372 A30 30 0 0 1 366 404 H228 L170 446 L178 404 H146 A30 30 0 0 1 116 372 L128 202 A22 22 0 0 1 150 180 Z" fill="url(#bgold)"/>
+  <!-- friendly assistant face -->
+  <circle cx="214" cy="270" r="17" fill="#0B0B0F"/>
+  <circle cx="298" cy="270" r="17" fill="#0B0B0F"/>
+  <path d="M206 322 Q256 362 306 322" fill="none" stroke="#0B0B0F" stroke-width="16" stroke-linecap="round"/>
+  <!-- spark -->
+  <path d="M404 98 C407 120 412 125 434 128 C412 131 407 136 404 158 C401 136 396 131 374 128 C396 125 401 120 404 98 Z" fill="#E9CFA0"/>
+</svg>

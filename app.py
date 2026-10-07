@@ -7,9 +7,11 @@ Left: the customer chat (text or voice).
 Right: a live "behind the scenes" panel showing how the AI handled each message:
 route taken, response time, query analysis, tool calls and FAQ sources.
 """
+import base64
 import html
 import inspect
 import os
+from pathlib import Path
 import threading
 import time
 
@@ -21,15 +23,22 @@ from step5_speech_to_text import transcribe
 
 MODEL_NAME = os.getenv("LLM_MODEL", "openai:gpt-4o-mini").split(":", 1)[-1]
 
+# The ShopEasy logo (assets/logo.svg) is shown in the header and used as the browser-tab icon
+LOGO_PATH = Path(__file__).resolve().parent / "assets" / "logo.svg"
+LOGO_URI = (
+    "data:image/svg+xml;base64," + base64.b64encode(LOGO_PATH.read_bytes()).decode()
+    if LOGO_PATH.exists() else ""
+)
+
 ROUTES = {
-    "faq_rag": ("📚", "Knowledge base", "Answered from the help-centre FAQ (RAG)", "#059669"),
-    "quick_lookup": ("⚡", "Quick order lookup", "Order ID found, status fetched directly", "#2563eb"),
-    "react_agent": ("🤖", "ReAct agent", "Reasoned step by step and used tools", "#7c3aed"),
-    "escalated": ("🚨", "Escalated to a human", "Ticket created for a specialist", "#dc2626"),
-    "error": ("⚠️", "Error", "Something went wrong", "#6b7280"),
+    "faq_rag": ("📚", "Knowledge base", "Answered from the help-centre FAQ (RAG)", "#34d399"),
+    "quick_lookup": ("⚡", "Quick order lookup", "Order ID found, status fetched directly", "#d4b483"),
+    "react_agent": ("🤖", "ReAct agent", "Reasoned step by step and used tools", "#a78bfa"),
+    "escalated": ("🚨", "Escalated to a human", "Ticket created for a specialist", "#f87171"),
+    "error": ("⚠️", "Error", "Something went wrong", "#8f8a84"),
 }
 SENTIMENT_EMOJI = {"positive": "😊", "neutral": "😐", "negative": "😟", "angry": "😡"}
-URGENCY_COLOR = {"low": "#059669", "medium": "#d97706", "high": "#dc2626"}
+URGENCY_COLOR = {"low": "#34d399", "medium": "#d4b483", "high": "#f87171"}
 
 EXAMPLES = [
     "Where is my order ORD1002?",
@@ -43,68 +52,126 @@ EXAMPLES = [
 # Styling
 # ---------------------------------------------------------------------------
 CSS = """
-.gradio-container { max-width: 1280px !important; margin: auto !important; }
+/* ===== ShopEasy palette: matches the gold-on-black logo ===== */
+:root, body, .dark, .gradio-container, .gradio-container.dark {
+  --se-ink: #0a0a0a; --se-ink2: #121212; --se-ink3: #1a1a1a;
+  --se-gold: #d4b483; --se-gold2: #a8875a; --se-gold-soft: rgba(212,180,131,.12);
+  --se-text: #f3eee8; --se-muted: #8f8a84; --se-line: rgba(255,255,255,.09);
+
+  /* Gradio theme variables, forced dark in both light and dark mode */
+  --body-background-fill: var(--se-ink) !important;
+  --background-fill-primary: var(--se-ink2) !important;
+  --background-fill-secondary: var(--se-ink3) !important;
+  --block-background-fill: var(--se-ink2) !important;
+  --block-border-color: var(--se-line) !important;
+  --border-color-primary: var(--se-line) !important;
+  --border-color-accent: rgba(212,180,131,.45) !important;
+  --body-text-color: var(--se-text) !important;
+  --body-text-color-subdued: var(--se-muted) !important;
+  --block-label-text-color: var(--se-muted) !important;
+  --block-title-text-color: var(--se-text) !important;
+  --block-label-background-fill: var(--se-ink3) !important;
+  --input-background-fill: var(--se-ink3) !important;
+  --input-background-fill-focus: var(--se-ink3) !important;
+  --input-border-color: var(--se-line) !important;
+  --input-border-color-focus: var(--se-gold) !important;
+  --input-placeholder-color: #6b6660 !important;
+  --button-primary-background-fill: var(--se-gold) !important;
+  --button-primary-background-fill-hover: #e2c79c !important;
+  --button-primary-text-color: var(--se-ink) !important;
+  --button-primary-border-color: var(--se-gold) !important;
+  --button-secondary-background-fill: transparent !important;
+  --button-secondary-background-fill-hover: var(--se-gold-soft) !important;
+  --button-secondary-text-color: var(--se-text) !important;
+  --button-secondary-border-color: var(--se-line) !important;
+  --color-accent: var(--se-gold) !important;
+  --color-accent-soft: var(--se-gold-soft) !important;
+  --link-text-color: var(--se-gold) !important;
+  --table-even-background-fill: var(--se-ink2) !important;
+  --table-odd-background-fill: var(--se-ink3) !important;
+}
+body, gradio-app { background: var(--se-ink) !important; }
+.gradio-container { max-width: 1280px !important; margin: auto !important; color: var(--se-text); }
 footer { display: none !important; }
 
+/* ----- header ----- */
 #hero {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
-  border-radius: 20px; padding: 26px 30px; color: #fff; margin-bottom: 6px;
-  box-shadow: 0 12px 32px -12px rgba(79, 70, 229, .55);
+  position: relative; overflow: hidden;
+  background: radial-gradient(circle at 88% 0%, rgba(212,180,131,.22), transparent 45%),
+              linear-gradient(135deg, #1a1712 0%, #0d0d0d 70%);
+  border: 1px solid rgba(212,180,131,.28); border-radius: 22px; padding: 24px 28px; margin-bottom: 6px;
+  box-shadow: 0 18px 40px -22px rgba(212,180,131,.45);
 }
-#hero h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: #fff; }
-#hero p { margin: 6px 0 14px; opacity: .92; font-size: 15px; color: #fff; }
+#hero .brand { display: flex; align-items: center; gap: 18px; }
+#hero .logo { width: 68px; height: 68px; border-radius: 18px; flex: none;
+  box-shadow: 0 10px 28px -10px rgba(212,180,131,.6); }
+#hero .kicker { font-size: 11px; font-weight: 800; letter-spacing: .28em; text-transform: uppercase; color: var(--se-gold); }
+#hero h1 { margin: 2px 0 0; font-size: 30px; font-weight: 800; letter-spacing: -.03em; color: var(--se-text); line-height: 1.1; }
+#hero h1 span { color: var(--se-gold); }
+#hero p { margin: 14px 0 14px; font-size: 15px; color: var(--se-muted); }
 #hero .chips span {
-  display: inline-block; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3);
-  padding: 4px 11px; border-radius: 999px; font-size: 12.5px; margin: 0 6px 6px 0; color: #fff;
+  display: inline-block; border: 1px solid rgba(212,180,131,.3); background: rgba(212,180,131,.06);
+  padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; margin: 0 6px 6px 0; color: #e9dcc6;
 }
-#hero .status { float: right; font-size: 12.5px; background: rgba(0,0,0,.22); padding: 5px 12px; border-radius: 999px; }
-#hero .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#4ade80; margin-right:6px;
-  box-shadow: 0 0 0 3px rgba(74,222,128,.3); }
+#hero .status { position: absolute; top: 20px; right: 24px; font-size: 12px; font-weight: 600; color: var(--se-text);
+  background: rgba(255,255,255,.05); border: 1px solid var(--se-line); padding: 5px 12px; border-radius: 999px; }
+#hero .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#34d399; margin-right:6px;
+  box-shadow: 0 0 0 3px rgba(52,211,153,.25); }
+@media (max-width: 720px) { #hero .status { position: static; display: inline-block; margin-bottom: 12px; } }
 
-.panel-title { font-weight: 700; font-size: 15px; margin: 2px 0 8px; display:flex; align-items:center; gap:8px; }
+/* ----- chat ----- */
+#chatbot { border-radius: 18px !important; border: 1px solid var(--se-line) !important; background: var(--se-ink2) !important; }
+#chatbot .message.user, #chatbot [data-testid="user"] {
+  background: var(--se-gold) !important; color: var(--se-ink) !important; border-color: var(--se-gold) !important; }
+#chatbot .message.bot, #chatbot [data-testid="bot"] {
+  background: var(--se-ink3) !important; color: var(--se-text) !important; border-color: var(--se-line) !important; }
+#send-btn { min-width: 96px; font-weight: 800 !important; letter-spacing: .04em; }
+button.primary, .primary { font-weight: 700 !important; }
+
+/* ----- behind-the-scenes panel ----- */
+.panel-title { font-weight: 800; font-size: 12px; margin: 4px 0 10px; letter-spacing: .24em; text-transform: uppercase;
+  color: var(--se-gold); display:flex; align-items:center; gap:10px; }
+.panel-title:before { content: ""; width: 28px; height: 1px; background: currentColor; }
 
 .card {
-  border: 1px solid var(--border-color-primary); background: var(--block-background-fill);
-  border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
+  border: 1px solid var(--se-line); background: var(--se-ink2);
+  border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; color: var(--se-text);
 }
-.card .label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; opacity: .65; margin-bottom: 8px; font-weight: 600; }
-.empty { opacity: .55; font-size: 13.5px; }
+.card .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .2em; color: var(--se-muted); margin-bottom: 10px; font-weight: 700; }
+.empty { color: var(--se-muted); font-size: 13.5px; }
 
 .route { display:flex; align-items:center; gap:12px; }
-.route .icon { font-size: 26px; width: 46px; height: 46px; border-radius: 12px; display:flex; align-items:center; justify-content:center; }
-.route .name { font-weight: 700; font-size: 16px; }
-.route .desc { font-size: 13px; opacity: .75; }
-.route .time { margin-left:auto; text-align:right; font-weight:700; font-size: 18px; }
-.route .time small { display:block; font-weight:500; font-size:11px; opacity:.6; }
+.route .icon { font-size: 24px; width: 46px; height: 46px; border-radius: 12px; display:flex; align-items:center; justify-content:center; }
+.route .name { font-weight: 800; font-size: 16px; }
+.route .desc { font-size: 13px; color: var(--se-muted); }
+.route .time { margin-left:auto; text-align:right; font-weight:800; font-size: 20px; color: var(--se-gold); }
+.route .time small { display:block; font-weight:600; font-size:10.5px; color: var(--se-muted); letter-spacing: .08em; text-transform: uppercase; }
 
 .pills { display:flex; flex-wrap:wrap; gap:8px; }
-.pill { border-radius: 10px; padding: 7px 11px; font-size: 13px; border: 1px solid var(--border-color-primary); }
-.pill b { display:block; font-size: 10.5px; text-transform: uppercase; letter-spacing:.05em; opacity:.6; font-weight:600; margin-bottom:2px; }
-.summary { margin-top:10px; font-size: 13.5px; opacity: .85; font-style: italic; }
+.pill { border-radius: 10px; padding: 7px 11px; font-size: 13px; border: 1px solid var(--se-line); background: var(--se-ink3); }
+.pill b { display:block; font-size: 10px; text-transform: uppercase; letter-spacing:.12em; color: var(--se-muted); font-weight:700; margin-bottom:2px; }
+.summary { margin-top:10px; font-size: 13.5px; color: #cfc6ba; font-style: italic; }
 
-.step { border-left: 3px solid #7c3aed; padding: 4px 0 8px 12px; margin: 0 0 10px 4px; }
-.step .head { font-size: 12px; font-weight: 700; color: #7c3aed; margin-bottom: 4px; }
-.step .thought { font-size: 13px; font-style: italic; opacity: .8; margin-bottom: 6px; }
-.step code { font-size: 12px; background: rgba(124,58,237,.1); padding: 2px 6px; border-radius: 6px; }
-.step .obs { font-size: 12.5px; margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: rgba(127,127,127,.08); }
+.step { border-left: 2px solid var(--se-gold); padding: 4px 0 8px 12px; margin: 0 0 10px 4px; }
+.step .head { font-size: 11px; font-weight: 800; letter-spacing: .16em; color: var(--se-gold); margin-bottom: 4px; }
+.step .thought { font-size: 13px; font-style: italic; color: #cfc6ba; margin-bottom: 6px; }
+.step code { font-size: 12px; background: var(--se-gold-soft); color: #ecd9b8; padding: 2px 6px; border-radius: 6px; }
+.step .obs { font-size: 12.5px; margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: var(--se-ink3); color: #d9d2c8; }
 
-.source { display:inline-block; border-radius: 999px; padding: 4px 11px; font-size: 12.5px; margin: 0 6px 6px 0;
-  background: rgba(5,150,105,.12); color: #059669; border: 1px solid rgba(5,150,105,.25); font-weight: 600; }
-.ticket { margin-top: 10px; font-size: 13px; padding: 8px 12px; border-radius: 10px; background: rgba(220,38,38,.1);
-  color: #dc2626; font-weight: 600; }
-
-#chatbot { border-radius: 16px !important; }
-#send-btn { min-width: 90px; }
+.source { display:inline-block; border-radius: 999px; padding: 4px 12px; font-size: 12.5px; margin: 0 6px 6px 0;
+  background: var(--se-gold-soft); color: var(--se-gold); border: 1px solid rgba(212,180,131,.3); font-weight: 700; }
+.ticket { margin-top: 10px; font-size: 13px; padding: 8px 12px; border-radius: 10px; background: rgba(248,113,113,.1);
+  color: #f87171; font-weight: 700; border: 1px solid rgba(248,113,113,.25); }
 """
 
 
 def make_theme():
     try:
         return gr.themes.Soft(
-            primary_hue="indigo",
-            secondary_hue="violet",
-            neutral_hue="slate",
-            font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"],
+            primary_hue="amber",
+            secondary_hue="stone",
+            neutral_hue="stone",
+            font=[gr.themes.GoogleFont("Manrope"), "ui-sans-serif", "system-ui", "sans-serif"],
         )
     except Exception:
         return None
@@ -119,12 +186,19 @@ esc = html.escape
 def hero_html() -> str:
     chips = "".join(
         f"<span>{c}</span>"
-        for c in ["🔗 LCEL chains", "🧭 DAG routing", "🤖 ReAct agent", "📚 RAG", "🎤 Whisper voice"]
+        for c in ["LCEL chains", "DAG routing", "ReAct agent", "RAG", "Whisper voice"]
     )
+    logo = f'<img class="logo" src="{LOGO_URI}" alt="{esc(COMPANY_NAME)} logo">' if LOGO_URI else ""
     return f"""
 <div id="hero">
   <div class="status"><span class="dot"></span>Online · {esc(MODEL_NAME)}</div>
-  <h1>🛍️ {esc(COMPANY_NAME)} Support Assistant</h1>
+  <div class="brand">
+    {logo}
+    <div>
+      <div class="kicker">AI customer support</div>
+      <h1><span>{esc(COMPANY_NAME)}</span> Support Assistant</h1>
+    </div>
+  </div>
   <p>Ask about orders, refunds, returns, payments or delivery, by typing or speaking.</p>
   <div class="chips">{chips}</div>
 </div>"""
@@ -135,7 +209,7 @@ def route_html(route: str | None = None, seconds: float | None = None, ticket: s
         return '<div class="card"><div class="label">Route</div><div class="empty">Send a message to see how the AI handles it.</div></div>'
     if route == "working":
         return ('<div class="card"><div class="label">Route</div><div class="route">'
-                '<div class="icon" style="background:rgba(79,70,229,.12)">⏳</div>'
+                '<div class="icon" style="background:rgba(212,180,131,.12);border:1px solid rgba(212,180,131,.35)">⏳</div>'
                 '<div><div class="name">Working on it…</div><div class="desc">Analysing, searching the FAQ and choosing a route</div></div>'
                 '</div></div>')
     icon, name, desc, color = ROUTES.get(route, ROUTES["error"])
@@ -144,7 +218,7 @@ def route_html(route: str | None = None, seconds: float | None = None, ticket: s
     return f"""
 <div class="card"><div class="label">Route</div>
   <div class="route">
-    <div class="icon" style="background:{color}1f">{icon}</div>
+    <div class="icon" style="background:{color}22;border:1px solid {color}55">{icon}</div>
     <div><div class="name" style="color:{color}">{name}</div><div class="desc">{desc}</div></div>
     {time_block}
   </div>{ticket_block}
@@ -318,8 +392,10 @@ if _accepts(gr.Chatbot.__init__, "type"):
     chatbot_kwargs["type"] = "messages"  # Gradio 5
 if _accepts(gr.Chatbot.__init__, "placeholder"):
     chatbot_kwargs["placeholder"] = (
-        f"<div style='text-align:center;opacity:.7'><div style='font-size:42px'>👋</div>"
-        f"<b>Hi! I'm the {COMPANY_NAME} assistant.</b><br>Ask me about an order, a refund or our policies.</div>"
+        f"<div style='text-align:center;color:#8f8a84'>"
+        + (f"<img src='{LOGO_URI}' width='64' style='border-radius:16px;margin-bottom:10px'><br>" if LOGO_URI else "")
+        + f"<b style='color:#f3eee8'>Hi! I'm the {COMPANY_NAME} assistant.</b><br>"
+        "Ask me about an order, a refund or our policies.</div>"
     )
 
 with gr.Blocks(**blocks_kwargs) as demo:
@@ -361,4 +437,6 @@ with gr.Blocks(**blocks_kwargs) as demo:
 if __name__ == "__main__":
     threading.Thread(target=warm_up, daemon=True).start()
     launch_kwargs = {"css": CSS, "theme": THEME} if STYLE_IN_LAUNCH else {}
+    if LOGO_PATH.exists() and _accepts(gr.Blocks.launch, "favicon_path"):
+        launch_kwargs["favicon_path"] = str(LOGO_PATH)  # logo as the browser-tab icon
     demo.launch(**launch_kwargs)
